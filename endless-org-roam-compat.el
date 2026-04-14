@@ -24,7 +24,7 @@
 
 ;;; Version Detection
 
-(defconst eor-minimum-emacs-version "28.1"
+(defconst eor-minimum-emacs-version "29.1"
   "Minimum supported Emacs version for EOR.")
 
 (defconst eor-minimum-org-roam-version "2.2.0"

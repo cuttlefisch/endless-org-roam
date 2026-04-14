@@ -8,7 +8,7 @@
 ;; Version: 0.1.0
 ;; Keywords: convenience org-roam federation
 ;; Homepage: https://github.com/cuttlefisch/endless-org-roam
-;; Package-Requires: ((emacs "28.1") (org-roam "2.2.0"))
+;; Package-Requires: ((emacs "29.1") (org-roam "2.2.0"))
 ;;
 ;; This file is not part of GNU Emacs.
 ;;
