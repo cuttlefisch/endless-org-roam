@@ -35,11 +35,13 @@
   (if (boundp 'org-roam-version)
       org-roam-version
     ;; Fallback: read from package descriptor
-    (let ((pkg (assq 'org-roam package-alist)))
-      (if pkg
-          (package-version-join
-           (package-desc-version (cadr pkg)))
-        "unknown"))))
+    (if (boundp 'package-alist)
+        (let ((pkg (assq 'org-roam package-alist)))
+          (if pkg
+              (package-version-join
+               (package-desc-version (cadr pkg)))
+            "unknown"))
+      "unknown")))
 
 ;;;###autoload
 (defun eor-compat-check ()

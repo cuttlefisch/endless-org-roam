@@ -5,8 +5,11 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         emacs-version: ['28.1', '29.4', '30.1', 'snapshot']
+    # Emacs 28.1 may fail due to upstream dependency resolution
+    continue-on-error: ${{ matrix.emacs-version == '28.1' }}
     steps:
       - uses: actions/checkout@v4
       - uses: purcell/setup-emacs@master
