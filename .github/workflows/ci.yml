@@ -16,21 +16,29 @@ jobs:
         with:
           version: ${{ matrix.emacs-version }}
       - uses: conao3/setup-cask@master
-      - name: Debug package archives
+      - name: Install dependencies
+        if: matrix.emacs-version != '28.1'
+        run: cask install
+      - name: Install dependencies (28.1 debug)
         if: matrix.emacs-version == '28.1'
         run: |
-          emacs --batch --eval '
-            (progn
-              (require (quote package))
-              (package-initialize)
-              (message "Archives: %S" package-archives)
-              (message "Emacs: %s" emacs-version)
-              (message "TLS: %S" (gnutls-available-p))
-              (package-refresh-contents)
-              (message "org-roam available: %S"
-                       (assq (quote org-roam) package-archive-contents)))'
-      - name: Install dependencies
-        run: cask install
+          cask install 2>&1 || {
+            echo "--- cask install failed, trying verbose ---"
+            emacs --batch -L . --eval '
+              (progn
+                (require (quote package))
+                (setq package-archives
+                      (quote (("gnu" . "https://elpa.gnu.org/packages/")
+                              ("melpa" . "https://melpa.org/packages/"))))
+                (package-initialize)
+                (package-refresh-contents)
+                (message "org-roam versions: %S"
+                         (cdr (assq (quote org-roam) package-archive-contents)))
+                (condition-case err
+                    (package-install (quote org-roam))
+                  (error (message "Install error: %S" err))))'
+            exit 1
+          }
       - run: make test
 
   lint:
