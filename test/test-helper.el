@@ -103,9 +103,11 @@
 
 ;; --- Now load EOR modules ---
 (require 'endless-org-roam)
+(require 'endless-org-roam-compat)
 (require 'endless-org-roam-registry)
 (require 'endless-org-roam-transport)
 (require 'endless-org-roam-link)
+(require 'endless-org-roam-search)
 
 ;;; Fixtures
 

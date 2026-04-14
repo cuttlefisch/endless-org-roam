@@ -35,7 +35,7 @@
 
 (defun eor-compat--org-roam-version ()
   "Return the installed org-roam version as a string."
-  (if (boundp 'org-roam-version)
+  (if (and (boundp 'org-roam-version) org-roam-version)
       org-roam-version
     ;; Fallback: read from package descriptor
     (if (boundp 'package-alist)

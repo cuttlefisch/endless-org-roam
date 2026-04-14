@@ -137,23 +137,24 @@ structs."
 Returns t or nil.  Respects circuit breaker and timeout."
   (let ((instance-id (alist-get :id instance))
         (endpoint (alist-get :endpoint instance)))
-    (when (eq (eor-transport--circuit-state-for instance-id) 'open)
-      (eor-message "Skipping instance %s (circuit open)"
-                   (alist-get :name instance))
-      (cl-return-from eor-transport-node-exists-p nil))
-    (condition-case nil
-        (with-timeout (eor-transport-timeout nil)
-          (let ((result (if endpoint
-                           ;; Phase 3: HTTP backend
-                           (eor-message "HTTP transport not yet implemented")
-                         (eor-transport--local-node-exists-p
-                          instance node-id))))
-            (when result
-              (eor-transport--record-success instance-id))
-            result))
-      (error
-       (eor-transport--record-failure instance-id)
-       nil))))
+    (if (eq (eor-transport--circuit-state-for instance-id) 'open)
+        (progn
+          (eor-message "Skipping instance %s (circuit open)"
+                       (alist-get :name instance))
+          nil)
+      (condition-case nil
+          (with-timeout (eor-transport-timeout nil)
+            (let ((result (if endpoint
+                             ;; Phase 3: HTTP backend
+                             (eor-message "HTTP transport not yet implemented")
+                           (eor-transport--local-node-exists-p
+                            instance node-id))))
+              (when result
+                (eor-transport--record-success instance-id))
+              result))
+        (error
+         (eor-transport--record-failure instance-id)
+         nil)))))
 
 ;;;###autoload
 (defun eor-transport-open-node (instance node-id)
@@ -185,22 +186,23 @@ Returns the `org-roam-node' or signals an error."
   "Return all nodes from INSTANCE, optionally filtered by FILTER-FN."
   (let ((instance-id (alist-get :id instance))
         (endpoint (alist-get :endpoint instance)))
-    (when (eq (eor-transport--circuit-state-for instance-id) 'open)
-      (eor-message "Skipping instance %s (circuit open)"
-                   (alist-get :name instance))
-      (cl-return-from eor-transport-node-list nil))
-    (condition-case nil
-        (with-timeout (eor-transport-timeout nil)
-          (let ((result (if endpoint
-                           nil ;; Phase 3: HTTP backend
-                         (eor-transport--local-node-list
-                          instance filter-fn))))
-            (when result
-              (eor-transport--record-success instance-id))
-            result))
-      (error
-       (eor-transport--record-failure instance-id)
-       nil))))
+    (if (eq (eor-transport--circuit-state-for instance-id) 'open)
+        (progn
+          (eor-message "Skipping instance %s (circuit open)"
+                       (alist-get :name instance))
+          nil)
+      (condition-case nil
+          (with-timeout (eor-transport-timeout nil)
+            (let ((result (if endpoint
+                             nil ;; Phase 3: HTTP backend
+                           (eor-transport--local-node-list
+                            instance filter-fn))))
+              (when result
+                (eor-transport--record-success instance-id))
+              result))
+        (error
+         (eor-transport--record-failure instance-id)
+         nil)))))
 
 (provide 'endless-org-roam-transport)
 ;;; endless-org-roam-transport.el ends here

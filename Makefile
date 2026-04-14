@@ -36,9 +36,12 @@ test:
 	$(EMACS_CMD) --batch -L . -L test $(CASK_LOAD) \
 		-l buttercup \
 		-l test-helper \
+		-l test-endless-org-roam-compat \
+		-l test-endless-org-roam \
 		-l test-endless-org-roam-registry \
 		-l test-endless-org-roam-link \
 		-l test-endless-org-roam-transport \
+		-l test-endless-org-roam-search \
 		-f buttercup-run
 
 lint:
