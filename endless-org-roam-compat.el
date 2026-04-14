@@ -30,6 +30,9 @@
 (defconst eor-minimum-org-roam-version "2.2.0"
   "Minimum supported org-roam version for EOR.")
 
+(declare-function package-desc-version "package" (pkg-desc))
+(declare-function package-version-join "package" (vlist))
+
 (defun eor-compat--org-roam-version ()
   "Return the installed org-roam version as a string."
   (if (boundp 'org-roam-version)
