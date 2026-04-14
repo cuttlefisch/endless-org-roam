@@ -1,0 +1,144 @@
+#+TITLE: Contributing to Endless Org Roam
+#+STARTUP: showall
+
+Thank you for your interest in contributing to Endless Org Roam!
+
+* Getting Started
+
+1. Clone the repository:
+   #+begin_src shell
+   git clone https://github.com/cuttlefisch/endless-org-roam.git
+   cd endless-org-roam
+   #+end_src
+
+2. Install [[https://github.com/cask/cask][Cask]] for dependency management.
+
+3. Install dependencies and run tests:
+   #+begin_src shell
+   cask install
+   make test
+   #+end_src
+
+   *Doom Emacs users*: the Makefile auto-detects =straight.el= packages, so
+   =make test= works without Cask if your Doom packages are built.
+
+* Architecture
+
+** Design Principles
+
+EOR is built on these principles:
+
+- *No upstream modifications* -- we extend org-roam purely via
+  =org-link-set-parameters=, =advice-add=, and temporary =let=-bindings.
+  Never modify org-roam source.
+
+- *Registry-based federation* -- instances register with a local registry
+  (plain Lisp alist at =~/.emacs.d/eor-registry.el=).  This encapsulates
+  federation complexity and follows patterns from ActivityPub and XMPP.
+
+- *Local-first resolution* -- links always check the current instance before
+  querying remotes, like a DNS resolver checking its local cache first.
+
+- *Graceful degradation* -- unreachable instances produce soft errors.  The
+  editor is *never blocked* by federation.  A circuit breaker pattern prevents
+  repeated timeouts.
+
+- *Non-destructive onboarding* -- existing org-roam KBs get one sentinel
+  file (=eor-instance.org=); nothing else changes.
+
+** Module Structure
+
+| Module | Responsibility |
+|--------|---------------|
+| =endless-org-roam.el= | Entry point, =defgroup=, =eor-mode= minor mode, logging |
+| =endless-org-roam-registry.el= | Registry CRUD, instance registration, sentinel nodes |
+| =endless-org-roam-link.el= | =eor:= link type, follow handler, resolution algorithm |
+| =endless-org-roam-search.el= | Cross-instance search and completion |
+| =endless-org-roam-transport.el= | Transport abstraction, circuit breaker, local/HTTP backends |
+| =endless-org-roam-compat.el= | Emacs/org-roam version guards, backports |
+
+** Key Extension Points in org-roam
+
+We rely on these org-roam internals:
+
+- =org-roam-db--connection= (hash-table keyed by directory) -- enables querying
+  multiple instance DBs simultaneously
+- =org-link-set-parameters= -- registers our =eor:= link type
+- =org-roam-node-read--completions= -- hook point for augmenting completion
+- =advice-add= on =org-id-find= -- intercepts ID resolution for federation
+
+* Development Workflow
+
+1. Branch from =prototype= (current development branch).
+2. *Write tests first* -- the project uses TDD.
+3. Run =make test= to verify all specs pass.
+4. Run =make lint= to check byte-compilation and checkdoc.
+5. Keep commits focused: one logical change per commit.
+
+* Commit Message Format
+
+We use [[https://www.conventionalcommits.org/][Conventional Commits]]:
+
+#+begin_src
+feat: add cross-instance node search
+fix: handle nil directory in registry lookup
+docs: update README with Phase 2 features
+test: add sentinel idempotence specs
+refactor: extract circuit breaker into separate module
+#+end_src
+
+* Coding Standards
+
+** General
+- All files use =lexical-binding: t=
+- Target Emacs 28.1+ APIs
+- Prefer built-in functions over =cl-lib= where possible
+- =checkdoc=-clean docstrings on all public functions
+- =;;;###autoload= cookies on all interactive entry points
+
+** Error Handling
+- =user-error= for user-facing failures
+- =condition-case= wrapping transport/DB calls with recovery paths
+- =lwarn= with ='eor= category for non-fatal issues
+- Custom errors via =define-error= for federation conditions
+- *Never block the editor* -- all remote failures must be soft errors
+
+** Logging
+- Use =eor-message= (gated by =eor-verbose=) for informational messages
+- All messages prefixed with =(eor)= for filtering
+
+** Customization
+- All user-facing values via =defcustom= with proper =:type= specs
+- No magic constants -- make it configurable
+
+* Testing
+
+Tests use [[https://github.com/jorgenschaefer/emacs-buttercup][Buttercup]].  Test files live in =test/=:
+
+- =test/test-helper.el= -- org-roam stubs, fixtures, macros
+- =test/test-endless-org-roam-registry.el= -- registry specs
+- =test/test-endless-org-roam-link.el= -- link parsing and resolution specs
+- =test/test-endless-org-roam-transport.el= -- transport and circuit breaker specs
+
+Since org-roam requires a SQLite database, unit tests use Buttercup spies to
+mock org-roam functions.  The test helper provides:
+
+- =with-eor-test-registry= -- fresh temporary registry with cleanup
+- =with-eor-test-instance= -- temporary org-roam directory with cleanup
+- =eor-test-node-create= -- minimal node struct for assertions
+
+** Requirements
+- All new public functions must have corresponding tests
+- New user-facing features should have E2E coverage (in =eor-test-env= repo)
+- CI must pass on Emacs 28.1, 29.4, 30.1, and snapshot
+
+* Submitting Changes
+
+1. Open a pull request against =prototype=.
+2. Fill out the PR template (summary, motivation, test plan).
+3. Ensure CI passes (all Emacs versions + lint).
+4. Update =CHANGELOG.org= with your changes.
+
+* License
+
+All contributions are licensed under the [[file:LICENSE][GNU General Public License v3.0]].

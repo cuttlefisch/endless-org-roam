@@ -1,0 +1,70 @@
+name: Version Bump
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  bump:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine version bump type
+        id: bump-type
+        run: |
+          COMMITS=$(git log --format="%s" ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.merge_commit_sha }})
+
+          if echo "$COMMITS" | grep -qiE '^(feat|feature)(\(.+\))?!:'; then
+            echo "bump=major" >> "$GITHUB_OUTPUT"
+          elif echo "$COMMITS" | grep -qiE '^feat(\(.+\))?:'; then
+            echo "bump=minor" >> "$GITHUB_OUTPUT"
+          elif echo "$COMMITS" | grep -qiE '^(fix|docs|test|refactor|chore)(\(.+\))?:'; then
+            echo "bump=patch" >> "$GITHUB_OUTPUT"
+          else
+            echo "bump=patch" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Bump type: $(cat "$GITHUB_OUTPUT" | grep bump)"
+
+      - name: Bump version
+        id: version
+        run: |
+          if [ -f VERSION ]; then
+            CURRENT=$(cat VERSION)
+          else
+            CURRENT="0.1.0"
+          fi
+
+          IFS='.' read -r major minor patch <<< "$CURRENT"
+
+          case "${{ steps.bump-type.outputs.bump }}" in
+            major) major=$((major + 1)); minor=0; patch=0 ;;
+            minor) minor=$((minor + 1)); patch=0 ;;
+            patch) patch=$((patch + 1)) ;;
+          esac
+
+          NEW="${major}.${minor}.${patch}"
+          echo "$NEW" > VERSION
+          echo "version=$NEW" >> "$GITHUB_OUTPUT"
+          echo "Bumped: $CURRENT -> $NEW"
+
+      - name: Update elisp package header
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          sed -i "s/^;; Version: .*/;; Version: $VERSION/" endless-org-roam.el
+          echo "Updated endless-org-roam.el header to $VERSION"
+
+      - name: Commit and tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add VERSION endless-org-roam.el
+          git commit -m "chore: bump version to ${{ steps.version.outputs.version }}"
+          git tag "v${{ steps.version.outputs.version }}"
+          git push origin main --tags
