@@ -5,7 +5,7 @@
 ;; Author: Hayden Stanko <system.cuttle@gmail.com>
 ;; Maintainer: Hayden Stanko <system.cuttle@gmail.com>
 ;; Created: April 15, 2026
-;; Version: 0.1.0
+;; Version: 0.2.0
 ;; Keywords: convenience org-roam federation
 ;; Homepage: https://github.com/cuttlefisch/endless-org-roam
 ;; Package-Requires: ((emacs "29.1") (org-roam "2.2.0"))
