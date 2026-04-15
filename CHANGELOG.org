@@ -1,0 +1,32 @@
+#+TITLE: Changelog
+#+STARTUP: showall
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [[https://keepachangelog.com/][Keep a Changelog]].
+
+* Unreleased
+
+** Added
+- Package skeleton with =eor-mode= global minor mode
+- Instance registry (=eor-register-instance=, =eor-registry-get=, =eor-registry-remove=)
+- Sentinel node (=eor-instance.org=) for idempotent registration
+- =eor:= link type with local-first resolution algorithm
+- Local transport backend (cross-instance DB queries via let-binding)
+- Circuit breaker with auto-recovery (=eor-transport-circuit-recovery-timeout=)
+- Collision detection: warns when node UUID exists in multiple instances
+- Graceful fallback: targeted links to unregistered instances try federated search
+- Whitespace trimming in link parser
+- Compatibility module (=endless-org-roam-compat.el=)
+- Cross-instance search (=eor-node-find=, =eor-node-insert=)
+- 128 Buttercup unit specs across 6 modules
+- E2E test suite with 10 tests (31 assertions) against real org-roam databases
+- CI workflow (Emacs 29.4, 30.1, snapshot)
+- E2E CI across vanilla, Doom, and Spacemacs profiles
+- Contributing guidelines, Code of Conduct, PR/issue templates
+
+** Changed
+- Minimum Emacs version bumped from 28.1 to 29.1 (compat.el dependency)
+
+** Fixed
+- =db-location= in registry was placed in parent directory instead of instance directory

@@ -15,3 +15,7 @@ dist/
 
 # Undo-tree save-files
 *.~undo-tree
+
+# Claude
+.claude/
+CLAUDE.md

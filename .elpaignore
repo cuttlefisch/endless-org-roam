@@ -1,0 +1,9 @@
+test/
+.github/
+.dir-locals.el
+Cask
+Makefile
+CONTRIBUTING.org
+CODE_OF_CONDUCT.md
+CHANGELOG.org
+.claude/
