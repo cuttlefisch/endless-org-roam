@@ -91,7 +91,7 @@ refactor: extract circuit breaker into separate module
 
 ** General
 - All files use =lexical-binding: t=
-- Target Emacs 28.1+ APIs
+- Target Emacs 29.1+ APIs
 - Prefer built-in functions over =cl-lib= where possible
 - =checkdoc=-clean docstrings on all public functions
 - =;;;###autoload= cookies on all interactive entry points
@@ -130,7 +130,7 @@ mock org-roam functions.  The test helper provides:
 ** Requirements
 - All new public functions must have corresponding tests
 - New user-facing features should have E2E coverage (in =eor-test-env= repo)
-- CI must pass on Emacs 28.1, 29.4, 30.1, and snapshot
+- CI must pass on Emacs 29.4, 30.1, and snapshot
 
 * Submitting Changes
 
