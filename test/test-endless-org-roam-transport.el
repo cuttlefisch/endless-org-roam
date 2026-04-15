@@ -108,7 +108,47 @@
         (eor-transport--record-failure "reset-test")
         (expect (eor-transport--circuit-state-for "reset-test")
                 :to-be 'open)
-        (eor-transport-reset-circuit "reset-test"))))
+        (eor-transport-reset-circuit "reset-test")))
+
+    (it "transitions open to half-open after recovery timeout"
+      (let ((eor-transport-circuit-threshold 1)
+            (eor-transport-circuit-recovery-timeout 1))
+        (eor-transport--record-failure "recovery-test")
+        (expect (eor-transport--circuit-state-for "recovery-test")
+                :to-be 'open)
+        ;; Simulate time passing by backdating the opened-at timestamp
+        (puthash "recovery-test"
+                 (- (float-time) 2)  ;; 2 seconds ago
+                 eor-transport--circuit-opened-at)
+        (expect (eor-transport--circuit-state-for "recovery-test")
+                :to-be 'half-open)
+        (eor-transport-reset-circuit "recovery-test")))
+
+    (it "stays open before recovery timeout"
+      (let ((eor-transport-circuit-threshold 1)
+            (eor-transport-circuit-recovery-timeout 300))
+        (eor-transport--record-failure "stay-open-test")
+        (expect (eor-transport--circuit-state-for "stay-open-test")
+                :to-be 'open)
+        ;; Should still be open (timeout is 300s)
+        (expect (eor-transport--circuit-state-for "stay-open-test")
+                :to-be 'open)
+        (eor-transport-reset-circuit "stay-open-test")))
+
+    (it "closes on success after half-open"
+      (let ((eor-transport-circuit-threshold 1)
+            (eor-transport-circuit-recovery-timeout 1))
+        (eor-transport--record-failure "reclose-test")
+        ;; Backdate to trigger half-open
+        (puthash "reclose-test"
+                 (- (float-time) 2)
+                 eor-transport--circuit-opened-at)
+        (expect (eor-transport--circuit-state-for "reclose-test")
+                :to-be 'half-open)
+        ;; Success should close it
+        (eor-transport--record-success "reclose-test")
+        (expect (eor-transport--circuit-state-for "reclose-test")
+                :to-be 'closed))))
 
   (describe "eor-transport-node-exists-p (dispatch)"
     (it "returns nil when circuit is open"

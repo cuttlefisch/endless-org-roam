@@ -35,20 +35,46 @@ Values are one of: closed (normal), open (failing), half-open (testing).")
 (defvar eor-transport--circuit-failures (make-hash-table :test #'equal)
   "Hash table mapping instance IDs to consecutive failure counts.")
 
+(defvar eor-transport--circuit-opened-at (make-hash-table :test #'equal)
+  "Hash table mapping instance IDs to the time the circuit was opened.
+Values are float-time timestamps.")
+
 (defcustom eor-transport-circuit-threshold 3
   "Number of consecutive failures before opening the circuit breaker."
   :type 'integer
   :group 'endless-org-roam)
 
+(defcustom eor-transport-circuit-recovery-timeout 300
+  "Seconds before an open circuit transitions to half-open.
+After this timeout, the next call will attempt the operation.
+On success the circuit closes; on failure it reopens."
+  :type 'integer
+  :group 'endless-org-roam)
+
 (defun eor-transport--circuit-state-for (instance-id)
   "Return the circuit breaker state for INSTANCE-ID.
-Returns `closed', `open', or `half-open'."
-  (or (gethash instance-id eor-transport--circuit-state) 'closed))
+Returns `closed', `open', or `half-open'.  An open circuit
+automatically transitions to half-open after the recovery timeout."
+  (let ((state (or (gethash instance-id eor-transport--circuit-state)
+                   'closed)))
+    (if (and (eq state 'open)
+             (let ((opened (gethash instance-id
+                                    eor-transport--circuit-opened-at)))
+               (and opened
+                    (> (- (float-time) opened)
+                       eor-transport-circuit-recovery-timeout))))
+        (progn
+          (puthash instance-id 'half-open eor-transport--circuit-state)
+          (eor-message "Circuit breaker half-open for instance %s (recovery attempt)"
+                       instance-id)
+          'half-open)
+      state)))
 
 (defun eor-transport--record-success (instance-id)
   "Record a successful transport operation for INSTANCE-ID."
   (puthash instance-id 'closed eor-transport--circuit-state)
-  (puthash instance-id 0 eor-transport--circuit-failures))
+  (puthash instance-id 0 eor-transport--circuit-failures)
+  (remhash instance-id eor-transport--circuit-opened-at))
 
 (defun eor-transport--record-failure (instance-id)
   "Record a failed transport operation for INSTANCE-ID.
@@ -59,6 +85,8 @@ Opens the circuit if failures exceed the threshold."
     (puthash instance-id failures eor-transport--circuit-failures)
     (when (>= failures eor-transport-circuit-threshold)
       (puthash instance-id 'open eor-transport--circuit-state)
+      (puthash instance-id (float-time)
+               eor-transport--circuit-opened-at)
       (eor-message "Circuit breaker opened for instance %s"
                    instance-id))))
 
@@ -70,6 +98,7 @@ Opens the circuit if failures exceed the threshold."
           (hash-table-keys eor-transport--circuit-state))))
   (puthash instance-id 'closed eor-transport--circuit-state)
   (puthash instance-id 0 eor-transport--circuit-failures)
+  (remhash instance-id eor-transport--circuit-opened-at)
   (eor-message "Circuit breaker reset for instance %s" instance-id))
 
 ;;; Local Backend

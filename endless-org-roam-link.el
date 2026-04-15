@@ -32,10 +32,13 @@
 (defun eor-link--parse (path)
   "Parse an eor: link PATH into (INSTANCE-ID . NODE-ID).
 If PATH contains a `/`, the part before is the instance UUID and
-the part after is the node UUID.  Otherwise INSTANCE-ID is nil."
+the part after is the node UUID.  Otherwise INSTANCE-ID is nil.
+Whitespace is trimmed from both components."
   (if (string-match "\\`\\([^/]+\\)/\\(.+\\)\\'" path)
-      (cons (match-string 1 path) (match-string 2 path))
-    (cons nil path)))
+      (let ((inst (match-string 1 path))
+            (node (match-string 2 path)))
+        (cons (string-trim inst) (string-trim node)))
+    (cons nil (string-trim path))))
 
 ;;; Link Resolution
 
@@ -49,28 +52,45 @@ Returns the `org-roam-node' or nil."
 (defun eor-link--resolve-federated (node-id)
   "Search all registered instances for NODE-ID.
 Returns the first `org-roam-node' found, or nil.  Skips the current
-local instance."
+local instance.  Warns if node exists in multiple instances."
   (let ((current-dir (expand-file-name
-                      (file-name-as-directory org-roam-directory))))
-    (catch 'found
-      (dolist (instance (eor-registry-list))
-        (let ((dir (alist-get :roam-directory instance)))
-          (unless (and dir
-                       (string= (expand-file-name
-                                 (file-name-as-directory dir))
-                                current-dir))
-            (when (eor-transport-node-exists-p instance node-id)
-              (throw 'found
-                     (eor-transport-open-node instance node-id))))))
-      nil)))
+                      (file-name-as-directory org-roam-directory)))
+        (found-instance nil)
+        (found-node nil))
+    (dolist (instance (eor-registry-list))
+      (let ((dir (alist-get :roam-directory instance)))
+        (unless (and dir
+                     (string= (expand-file-name
+                               (file-name-as-directory dir))
+                              current-dir))
+          (when (eor-transport-node-exists-p instance node-id)
+            (if found-instance
+                ;; Already found in another instance -- warn about collision
+                (lwarn 'eor :warning
+                       "Node %s found in multiple instances: %s, %s — using %s"
+                       node-id
+                       (alist-get :name found-instance)
+                       (alist-get :name instance)
+                       (alist-get :name found-instance))
+              (setq found-instance instance
+                    found-node (eor-transport-open-node
+                                instance node-id)))))))
+    found-node))
 
 (defun eor-link--resolve-targeted (instance-id node-id)
   "Resolve NODE-ID against the specific instance INSTANCE-ID.
-Returns the `org-roam-node' or signals an error."
+If the instance is not registered, falls back to federated search
+with a warning.  Returns the `org-roam-node' or signals an error."
   (let ((instance (eor-registry-get instance-id)))
-    (unless instance
-      (user-error "EOR instance not registered: %s" instance-id))
-    (eor-transport-open-node instance node-id)))
+    (if instance
+        (eor-transport-open-node instance node-id)
+      ;; Instance not in registry -- try federated search as fallback
+      (lwarn 'eor :warning
+             "Instance %s not registered, searching all instances for node %s"
+             instance-id node-id)
+      (or (eor-link--resolve-federated node-id)
+          (user-error "Node %s not found (instance %s not registered)"
+                      node-id instance-id)))))
 
 ;;; Link Follow Handler
 

@@ -48,10 +48,26 @@
                 :to-equal mock-node))))
 
   (describe "eor-link--resolve-targeted"
-    (it "signals error for unregistered instance"
+    (it "falls back to federated search for unregistered instance"
       (with-eor-test-registry
+        (spy-on 'eor-link--resolve-federated :and-return-value nil)
+        (spy-on 'lwarn)
         (expect (eor-link--resolve-targeted "unknown" "node-id")
-                :to-throw 'user-error))))
+                :to-throw 'user-error)
+        ;; Should have warned and tried federated
+        (expect 'lwarn :to-have-been-called)
+        (expect 'eor-link--resolve-federated
+                :to-have-been-called-with "node-id")))
+
+    (it "returns node from federated fallback for unregistered instance"
+      (with-eor-test-registry
+        (let ((mock-node (eor-test-node-create
+                           :id "fallback-node" :title "Fallback")))
+          (spy-on 'eor-link--resolve-federated
+                  :and-return-value mock-node)
+          (spy-on 'lwarn)
+          (let ((result (eor-link--resolve-targeted "unknown" "fallback-node")))
+            (expect result :to-equal mock-node))))))
 
   (describe "link registration"
     (it "registers eor: link type"
@@ -92,9 +108,9 @@
 
     (it "handles whitespace in path"
       (let ((result (eor-link--parse " inst / node ")))
-        ;; Should still parse on first /
-        (expect (car result) :to-equal " inst ")
-        (expect (cdr result) :to-equal " node "))))
+        ;; Whitespace should be trimmed
+        (expect (car result) :to-equal "inst")
+        (expect (cdr result) :to-equal "node"))))
 
   (describe "eor-link--resolve-federated"
     (it "skips current org-roam-directory"
@@ -171,7 +187,31 @@
           (eor-transport--record-failure "cb-skip")
           ;; node-exists-p returns nil for open circuits
           (expect (eor-link--resolve-federated "any") :to-be nil)
-          (eor-transport-reset-circuit "cb-skip")))))
+          (eor-transport-reset-circuit "cb-skip"))))
+
+    (it "warns when node found in multiple instances"
+      (with-eor-test-registry
+        (let* ((inst-a `((:id . "dup-a")
+                         (:name . "KB-A")
+                         (:roam-directory . "/tmp/dup-a/")
+                         (:db-location . "/tmp/dup-a.db")
+                         (:endpoint . nil)))
+               (inst-b `((:id . "dup-b")
+                         (:name . "KB-B")
+                         (:roam-directory . "/tmp/dup-b/")
+                         (:db-location . "/tmp/dup-b.db")
+                         (:endpoint . nil)))
+               (mock-node (eor-test-node-create
+                            :id "dup-node" :title "Duplicate")))
+          (setq eor--registry (list inst-a inst-b)
+                eor--registry-loaded-p t)
+          ;; Both instances have the node
+          (spy-on 'eor-transport-node-exists-p :and-return-value t)
+          (spy-on 'eor-transport-open-node :and-return-value mock-node)
+          (spy-on 'lwarn)
+          (eor-link--resolve-federated "dup-node")
+          ;; Should warn about collision
+          (expect 'lwarn :to-have-been-called)))))
 
   (describe "eor-link-follow (integration)"
     (it "resolves local-first when node exists locally"

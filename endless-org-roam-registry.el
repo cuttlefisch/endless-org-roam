@@ -204,10 +204,7 @@ that ID is reused (idempotent registration)."
                    (file-name-nondirectory (directory-file-name dir))))
          (existing-id (eor--read-sentinel-id dir))
          (instance-id (or existing-id (org-id-uuid)))
-         (db-loc (expand-file-name
-                  "org-roam.db"
-                  (file-name-directory
-                   (directory-file-name dir))))
+         (db-loc (expand-file-name "org-roam.db" dir))
          (entry `((:id . ,instance-id)
                   (:name . ,name)
                   (:roam-directory . ,dir)
